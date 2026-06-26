@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>MQTT Secure Client 示例</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+        .panel { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .panel h3 { margin-top: 0; }
+        input, textarea, button { padding: 8px 12px; font-size: 14px; margin: 4px 0; }
+        input, textarea { width: calc(100% - 24px); border: 1px solid #ccc; border-radius: 4px; }
+        button { background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { opacity: 0.9; }
+        #log { background: #f5f5f5; padding: 12px; border-radius: 4px; min-height: 100px; max-height: 300px; overflow-y: auto; font-size: 13px; }
+        .log-entry { margin: 4px 0; padding: 4px; border-left: 3px solid #667eea; padding-left: 8px; }
+        .status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #ccc; margin-right: 6px; }
+        .status.online { background: #2ecc71; }
+    </style>
+</head>
+<body>
+
+    <h1>MQTT Secure Client 示例</h1>
+
+    <div class="panel">
+        <h3>配置</h3>
+        <input type="text" id="broker" value="wss://broker.emqx.io:8084/mqtt" placeholder="Broker URL">
+        <input type="text" id="topic" value="secure/demo/chat" placeholder="Topic">
+        <input type="password" id="password" value="demo_password" placeholder="AES 密码">
+        <button id="btn-connect">连接</button>
+        <button id="btn-disconnect">断开</button>
+        <span class="status" id="status-dot"></span><span id="status-text">未连接</span>
+    </div>
+
+    <div class="panel">
+        <h3>发送消息</h3>
+        <textarea id="msg-input" rows="3" placeholder="输入消息..."></textarea>
+        <button id="btn-send">发送</button>
+    </div>
+
+    <div class="panel">
+        <h3>消息日志</h3>
+        <div id="log"></div>
+    </div>
+
+    <!-- 使用 ES Module 导入 -->
+    <script type="module">
+        import MqttSecureClient from './mqtt-client.js';
+
+        let client = null;
+        const logEl = document.getElementById('log');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        function addLog(type, content) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<strong>[${time}] ${type}:</strong> ${content}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            statusDot.className = 'status' + (connected ? ' online' : '');
+            statusText.textContent = connected ? '已连接' : '未连接';
+        }
+
+        document.getElementById('btn-connect').addEventListener('click', () => {
+            if (client) client.disconnect();
+
+            client = new MqttSecureClient({
+                broker: document.getElementById('broker').value.trim(),
+                topic: document.getElementById('topic').value.trim(),
+                password: document.getElementById('password').value.trim(),
+                onConnect: () => {
+                    updateStatus(true);
+                    addLog('系统', '连接成功');
+                },
+                onDisconnect: () => {
+                    updateStatus(false);
+                    addLog('系统', '连接断开');
+                },
+                onMessage: (sender, text, meta) => {
+                    addLog('收到', `<b>${sender}</b>: ${text}`);
+                },
+                onError: (err) => {
+                    addLog('错误', err.message);
+                }
+            });
+
+            client.connect();
+            addLog('系统', '正在连接...');
+        });
+
+        document.getElementById('btn-disconnect').addEventListener('click', () => {
+            if (client) {
+                client.disconnect();
+                client = null;
+            }
+            updateStatus(false);
+            addLog('系统', '手动断开');
+        });
+
+        document.getElementById('btn-send').addEventListener('click', () => {
+            const text = document.getElementById('msg-input').value.trim();
+            if (!text) return;
+            if (!client || !client.connected) {
+                addLog('错误', '未连接');
+                return;
+            }
+            const ok = client.send(text, { user: 'DemoUser' });
+            if (ok) {
+                addLog('发送', text);
+                document.getElementById('msg-input').value = '';
+            }
+        });
+    </script>
+
+</body>
+</html>
