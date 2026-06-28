@@ -105,12 +105,22 @@
         "marketValue": 13000,
         "profit": 500,
         "profitPercent": 4.0,
-        "accountType": "credit"
+        "accountType": "credit",
+        "provider": "founder"
       }
     ]
   }
 }
 ```
+
+**响应字段说明：**
+
+| 字段 | 类型 | 说明 |
+|-----|------|------|
+| count | number | 持仓数量 |
+| accountType | string | 账户类型 |
+| holdings | array | 持仓列表 |
+| holdings[].provider | string | 券商来源：`founder`（方正）/ `pingan`（平安） |
 
 ---
 
