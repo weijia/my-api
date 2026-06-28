@@ -40,14 +40,32 @@
 
 ### 响应格式
 
+Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
+
 ```json
 {
-  "action": "response",
-  "status": "success|error|partial",
-  "data": { },
-  "message": "错误信息（仅 error 时）"
+  "action": "命令名称（如 get_holdings）",
+  "data": {
+    "status": "success|error|partial",
+    "data": {
+      // 命令特定的响应数据
+    },
+    "message": "错误信息（仅 error 时）"
+  }
 }
 ```
+
+> **注意**：Agent 返回的响应在 `msg` 字段中是 `{ action, data: { status, data, message } }` 的嵌套结构，不是扁平的 `{ action, status, data }`。前端解析时需要先取 `msgData.data.status`，再取 `msgData.data.data` 获取实际业务数据。
+>
+> 完整链路示例：
+> ```
+> MQTT Payload (AES加密)
+>   └─> { id, msgId, user, msg, time }
+>         └─> msg = JSON.parse(payload.msg)
+>               └─> { action: "get_holdings", data: { status: "success", data: { holdings: [...] } } }
+>                     ├─> msgData.data.status  → "success"
+>                     └─> msgData.data.data.holdings → [...]
+> ```
 
 ### 命令路由规则
 
@@ -85,29 +103,31 @@
 }
 ```
 
-**响应示例：**
+**响应示例（Agent 实际返回的 `msg` 字段内容）：**
 
 ```json
 {
   "action": "get_holdings",
-  "status": "success",
   "data": {
-    "count": 2,
-    "accountType": "credit",
-    "holdings": [
-      {
-        "stockCode": "000001",
-        "stockName": "平安银行",
-        "quantity": 1000,
-        "availableQuantity": 800,
-        "costPrice": 12.50,
-        "currentPrice": 13.00,
-        "marketValue": 13000,
-        "profit": 500,
-        "profitPercent": 4.0,
-        "accountType": "credit"
-      }
-    ]
+    "status": "success",
+    "data": {
+      "count": 2,
+      "accountType": "credit",
+      "holdings": [
+        {
+          "stockCode": "000001",
+          "stockName": "平安银行",
+          "quantity": 1000,
+          "availableQuantity": 800,
+          "costPrice": 12.50,
+          "currentPrice": 13.00,
+          "marketValue": 13000,
+          "profit": 500,
+          "profitPercent": 4.0,
+          "accountType": "credit"
+        }
+      ]
+    }
   }
 }
 ```
@@ -126,19 +146,21 @@
 { "action": "list", "data": {} }
 ```
 
-**响应示例：**
+**响应示例（Agent 实际返回的 `msg` 字段内容）：**
 
 ```json
 {
   "action": "list",
-  "status": "success",
   "data": {
-    "stockCount": 2,
-    "stockNames": ["平安银行", "浦发银行"],
-    "stocks": [
-      { "name": "平安银行", "stockCode": "000001", "accountType": "credit" },
-      { "name": "浦发银行", "stockCode": "600000", "accountType": "credit" }
-    ]
+    "status": "success",
+    "data": {
+      "stockCount": 2,
+      "stockNames": ["平安银行", "浦发银行"],
+      "stocks": [
+        { "name": "平安银行", "stockCode": "000001", "accountType": "credit" },
+        { "name": "浦发银行", "stockCode": "600000", "accountType": "credit" }
+      ]
+    }
   }
 }
 ```
@@ -167,14 +189,16 @@
 { "action": "stop", "data": { "stockCode": "000001" } }
 ```
 
-**响应示例：**
+**响应示例（Agent 实际返回的 `msg` 字段内容）：**
 
 ```json
 {
   "action": "stop",
-  "status": "success",
-  "data": { "success": true },
-  "stockCode": "000001"
+  "data": {
+    "status": "success",
+    "data": { "success": true },
+    "stockCode": "000001"
+  }
 }
 ```
 
@@ -238,19 +262,21 @@
 }
 ```
 
-**响应示例：**
+**响应示例（Agent 实际返回的 `msg` 字段内容）：**
 
 ```json
 {
   "action": "create",
-  "status": "success",
   "data": {
-    "buy": { "success": true },
-    "sell": { "success": true },
-    "stockCode": "000001",
-    "stockName": "平安银行"
-  },
-  "stockCode": "000001"
+    "status": "success",
+    "data": {
+      "buy": { "success": true },
+      "sell": { "success": true },
+      "stockCode": "000001",
+      "stockName": "平安银行"
+    },
+    "stockCode": "000001"
+  }
 }
 ```
 
@@ -330,29 +356,31 @@
 { "action": "refresh_grid", "data": { "accountType": "credit" } }
 ```
 
-**响应示例：**
+**响应示例（Agent 实际返回的 `msg` 字段内容）：**
 
 ```json
 {
   "action": "refresh_grid",
-  "status": "success",
   "data": {
-    "count": 1,
-    "strategies": [
-      {
-        "strategyId": "G001",
-        "stockCode": "000001",
-        "stockName": "平安银行",
-        "taskName": "平安银行网格",
-        "status": "运行中",
-        "basicPrice": 12.5,
-        "priceRange": "11.0-14.0",
-        "gridSpacing": 0.5,
-        "costFunds": 10000,
-        "profit": 500,
-        "nowPrice": 13.0
-      }
-    ]
+    "status": "success",
+    "data": {
+      "count": 1,
+      "strategies": [
+        {
+          "strategyId": "G001",
+          "stockCode": "000001",
+          "stockName": "平安银行",
+          "taskName": "平安银行网格",
+          "status": "运行中",
+          "basicPrice": 12.5,
+          "priceRange": "11.0-14.0",
+          "gridSpacing": 0.5,
+          "costFunds": 10000,
+          "profit": 500,
+          "nowPrice": 13.0
+        }
+      ]
+    }
   }
 }
 ```
@@ -448,36 +476,38 @@
 }
 ```
 
-**响应示例：**
+**响应示例（Agent 实际返回的 `msg` 字段内容）：**
 
 ```json
 {
   "action": "get_holdings",
-  "status": "success",
   "data": {
-    "count": 1,
-    "provider": "pingan",
-    "account": "12345678",
-    "summary": {
-      "dayProfitLossSum": 500.00,
-      "totalProfitLossSum": 2000.00
-    },
-    "holdings": [
-      {
-        "stockCode": "000001",
-        "stockName": "平安银行",
-        "quantity": 1000,
-        "availableQuantity": 800,
-        "costPrice": 12.50,
-        "currentPrice": 13.00,
-        "marketValue": 13000,
-        "profit": 500,
-        "profitPercent": 4.0,
-        "dayProfitLoss": 100,
-        "dayProfitLossPercent": 0.77,
-        "accountType": "pingan"
-      }
-    ]
+    "status": "success",
+    "data": {
+      "count": 1,
+      "provider": "pingan",
+      "account": "12345678",
+      "summary": {
+        "dayProfitLossSum": 500.00,
+        "totalProfitLossSum": 2000.00
+      },
+      "holdings": [
+        {
+          "stockCode": "000001",
+          "stockName": "平安银行",
+          "quantity": 1000,
+          "availableQuantity": 800,
+          "costPrice": 12.50,
+          "currentPrice": 13.00,
+          "marketValue": 13000,
+          "profit": 500,
+          "profitPercent": 4.0,
+          "dayProfitLoss": 100,
+          "dayProfitLossPercent": 0.77,
+          "accountType": "pingan"
+        }
+      ]
+    }
   }
 }
 ```
