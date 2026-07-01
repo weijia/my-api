@@ -40,29 +40,32 @@
 
 ### 响应格式
 
-Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
+Agent 返回的响应也放在 `msg` 字段中，`action` 统一为 `"response"`，原始命令名放在 `data.action` 中：
 
 ```json
 {
-  "action": "命令名称（如 get_holdings）",
+  "action": "response",
   "data": {
+    "action": "原始命令名称（如 get_holdings）",
     "status": "success|error|partial",
     "data": {
       // 命令特定的响应数据
     },
+    "stockCode": "股票代码（部分命令附带）",
     "message": "错误信息（仅 error 时）"
   }
 }
 ```
 
-> **注意**：Agent 返回的响应在 `msg` 字段中是 `{ action, data: { status, data, message } }` 的嵌套结构，不是扁平的 `{ action, status, data }`。前端解析时需要先取 `msgData.data.status`，再取 `msgData.data.data` 获取实际业务数据。
+> **注意**：Agent 返回的响应 `action` 字段恒为 `"response"`，不是原始命令名。前端解析时通过 `msgData.data.action` 获取原始命令名，通过 `msgData.data.status` 获取状态，通过 `msgData.data.data` 获取实际业务数据。
 >
 > 完整链路示例：
 > ```
 > MQTT Payload (AES加密)
 >   └─> { id, msgId, user, msg, time }
 >         └─> msg = JSON.parse(payload.msg)
->               └─> { action: "get_holdings", data: { status: "success", data: { holdings: [...] } } }
+>               └─> { action: "response", data: { action: "get_holdings", status: "success", data: { holdings: [...] } } }
+>                     ├─> msgData.data.action → "get_holdings"
 >                     ├─> msgData.data.status  → "success"
 >                     └─> msgData.data.data.holdings → [...]
 > ```
@@ -107,8 +110,9 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 
 ```json
 {
-  "action": "get_holdings",
+  "action": "response",
   "data": {
+    "action": "get_holdings",
     "status": "success",
     "data": {
       "count": 2,
@@ -150,8 +154,9 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 
 ```json
 {
-  "action": "list",
+  "action": "response",
   "data": {
+    "action": "list",
     "status": "success",
     "data": {
       "stockCount": 2,
@@ -193,8 +198,9 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 
 ```json
 {
-  "action": "stop",
+  "action": "response",
   "data": {
+    "action": "stop",
     "status": "success",
     "data": { "success": true },
     "stockCode": "000001"
@@ -266,8 +272,9 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 
 ```json
 {
-  "action": "create",
+  "action": "response",
   "data": {
+    "action": "create",
     "status": "success",
     "data": {
       "buy": { "success": true },
@@ -360,8 +367,9 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 
 ```json
 {
-  "action": "refresh_grid",
+  "action": "response",
   "data": {
+    "action": "refresh_grid",
     "status": "success",
     "data": {
       "count": 1,
@@ -480,8 +488,9 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 
 ```json
 {
-  "action": "get_holdings",
+  "action": "response",
   "data": {
+    "action": "get_holdings",
     "status": "success",
     "data": {
       "count": 1,
@@ -647,8 +656,11 @@ Agent 返回的响应也放在 `msg` 字段中，但结构为**双层嵌套**：
 ```json
 {
   "action": "response",
-  "status": "error",
-  "message": "错误描述信息"
+  "data": {
+    "action": "原命令action",
+    "status": "error",
+    "message": "错误描述信息"
+  }
 }
 ```
 
