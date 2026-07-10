@@ -90,7 +90,7 @@ Agent 返回的响应也放在 `msg` 字段中，`action` 统一为 `"response"`
 | 参数 | 类型 | 必填 | 说明 |
 |-----|------|------|------|
 | provider | string | 否 | 券商类型，缺省为 founder |
-| accountType | string | 否 | 账户类型：`normal`（普通）/ `credit`（信用），不传返回全部 |
+| accountType | string | 否 | 账户类型：`default`（普通）/ `credit`（信用），不传返回全部（兼容旧值 `normal`） |
 | forceRefresh | boolean | 否 | 是否强制从服务器刷新，默认 false |
 
 **请求示例：**
@@ -612,6 +612,222 @@ Agent 返回的响应也放在 `msg` 字段中，`action` 统一为 `"response"`
 | 参数 | 类型 | 必填 | 说明 |
 |-----|------|------|------|
 | status | string | 否 | 按状态筛选 |
+
+---
+
+### 10. list_strategies - 获取策略单列表（双 Provider 统一接口）
+
+获取当前券商全部策略/条件单数据。通过 `provider` 参数区分券商，支持平安证券和方正证券。
+
+> **所有字段已在服务端统一标准化**，前端无需区分券商做适配处理。
+
+| Action | `list_strategies` |
+|--------|------|
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| provider | string | 否 | `founder` | 券商类型：`pingan` / `founder`（缺省） |
+| stockCode | string | 否 | "" | 按股票代码筛选，空=全部 |
+| status | string | 否 | "" | 按状态筛选，空=全部，标准取值：`running` / `paused` / `expired` |
+| type | string | 否 | "" | **仅 founder**：策略类型筛选 `"grid"` / `"condition"` / 空=全部 |
+| accountType | string | 否 | "" | **仅 founder**：账户类型筛选 `"default"` / `"credit"` / 空=全部 |
+| pageSize | number | 否 | 50 | **仅 pingan**：每页返回数量 |
+
+---
+
+#### 统一响应格式
+
+两个 Provider 返回的 `strategies` 数组使用**相同的字段名和语义**：
+
+**公共字段（所有策略）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| strategyId | string | 策略ID（统一为字符串） |
+| strategyType | string | `"grid"`（网格）/ `"condition"`（条件单） |
+| strategyTypeName | string | 策略类型中文名 |
+| stockCode | string | 股票代码 |
+| stockName | string | 股票名称 |
+| status | string | 运行状态：`running` / `paused` / `expired` |
+| provider | string | 券商：`founder` / `pingan` |
+
+**网格策略特有字段（strategyType = "grid"）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| basicPrice | string/number | 基准价格 |
+| gridSpacing | string | 网格间距（元），如 `"0.500"` |
+| tradeVolume | number | 每笔交易股数 |
+
+**条件单特有字段（strategyType = "condition"）：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| side | string | 交易方向：`"BUY"`（买入）/ `"SELL"`（卖出） |
+| deltaPercentage | number | 涨跌百分比（如 0.15 表示 15%） |
+| tradeVolume | number | 交易数量（股） |
+
+---
+
+#### 平安证券（provider=pingan）
+
+通过平安证券 H5 API 实时获取策略单。
+
+**请求示例：**
+
+```json
+{
+  "action": "list_strategies",
+  "data": {
+    "provider": "pingan"
+  }
+}
+```
+
+**响应示例：**
+
+```json
+{
+  "action": "response",
+  "data": {
+    "action": "list_strategies",
+    "status": "success",
+    "data": {
+      "total": 7,
+      "count": 7,
+      "provider": "pingan",
+      "strategies": [
+        {
+          "strategyId": "12",
+          "strategyType": "grid",
+          "strategyTypeName": "网格交易",
+          "stockCode": "603085",
+          "stockName": "天成自控",
+          "status": "running",
+          "provider": "pingan",
+          "basicPrice": 11.09,
+          "gridSpacing": "1.664",
+          "tradeVolume": 352
+        },
+        {
+          "strategyId": "8",
+          "strategyType": "condition",
+          "strategyTypeName": "反弹买入",
+          "stockCode": "603085",
+          "stockName": "天成自控",
+          "status": "running",
+          "provider": "pingan",
+          "side": "BUY",
+          "deltaPercentage": 0.15,
+          "tradeVolume": 352
+        },
+        {
+          "strategyId": "7",
+          "strategyType": "condition",
+          "strategyTypeName": "回落卖出",
+          "stockCode": "000001",
+          "stockName": "平安银行",
+          "status": "paused",
+          "provider": "pingan",
+          "side": "SELL",
+          "deltaPercentage": 0.10,
+          "tradeVolume": 500
+        }
+      ]
+    }
+  }
+}
+```
+
+**平安策略类型 ID 映射（服务端自动转换）：**
+
+| strategyId | strategyTypeName | strategyType |
+|------------|-----------------|-------------|
+| 12 | 网格交易 | grid |
+| 34 | ETF网格交易 | grid |
+| 35 | 可转债网格 | grid |
+| 7 | 回落卖出 | condition |
+| 8 | 反弹买入 | condition |
+| 9 | 开板卖出 | condition |
+| 15 | 定期定投 | condition |
+| 21 | 价格条件单 | condition |
+| 22 | 涨跌幅条件单 | condition |
+| 23 | 止盈止损 | condition |
+| 38 | 均线条件单 | condition |
+| 39 | 国债逆回购 | condition |
+
+> 此命令通过平安证券 `POST https://m.stock.pingan.com/restapi/past/queryMyYmdForPage` 实时获取，需在平安证券页面已登录。
+
+---
+
+#### 方正证券（provider=founder 或未指定）
+
+合并返回本地已存储的网格策略和条件单数据。
+
+**请求示例：**
+
+```json
+{
+  "action": "list_strategies",
+  "data": {}
+}
+```
+
+**响应示例：**
+
+```json
+{
+  "action": "response",
+  "data": {
+    "action": "list_strategies",
+    "status": "success",
+    "data": {
+      "total": 5,
+      "count": 5,
+      "provider": "founder",
+      "strategies": [
+        {
+          "strategyId": "1880866111",
+          "strategyType": "grid",
+          "strategyTypeName": "网格交易",
+          "stockCode": "002475",
+          "stockName": "立讯精密",
+          "status": "running",
+          "provider": "founder",
+          "accountType": "credit",
+          "basicPrice": "36.500",
+          "gridSpacing": "0.500",
+          "tradeVolume": 200,
+          "priceRange": "30.000-43.000",
+          "costFunds": "50000",
+          "profit": "1200.50",
+          "netPosition": 500,
+          "expiredTime": "2026-08-31 23:59:59",
+          "daysRemaining": 76
+        },
+        {
+          "strategyId": "1747580400000_a3f2b",
+          "strategyType": "condition",
+          "strategyTypeName": "上涨买入",
+          "stockCode": "002475",
+          "stockName": "立讯精密",
+          "status": "running",
+          "provider": "founder",
+          "accountType": "credit",
+          "side": "BUY",
+          "deltaPercentage": 0.5,
+          "tradeVolume": 200,
+          "createDate": "06-25 10:00:00"
+        }
+      ]
+    }
+  }
+}
+```
+
+> **注意**：方正证券侧返回的是本地已缓存数据。如需最新数据，请先通过 `refresh_grid` 和条件单刷新操作更新缓存。
 
 ---
 

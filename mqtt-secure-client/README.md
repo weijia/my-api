@@ -1,104 +1,75 @@
 # MQTT Secure Client
 
-基于 MQTT.js + CryptoJS 的加密通信封装，适用于浏览器环境。
+## 概述
 
-## 特性
+本项目包含平安证券脚本 (pingan-condition-order.user.js) 使用的 MQTT 安全通信客户端实现。
 
-- **WebSocket 连接** - 支持 `wss://` 和 `ws://`
-- **AES-256-CBC 加密** - 兼容 CryptoJS 的加密格式
-- **自动重连** - 连接断开后自动重试
-- **消息去重** - 防止重复接收自己发送的消息
-- **Promise-free API** - 基于回调，简单直观
+## MQTT 消息协议
 
-## 依赖
+### 消息格式
 
-```bash
-npm install mqtt crypto-js
-```
-
-## 快速开始
-
-```javascript
-import MqttSecureClient from './mqtt-client.js';
-
-const client = new MqttSecureClient({
-    broker: 'wss://broker.emqx.io:8084/mqtt',
-    topic: 'secure/chat/room1',
-    password: 'your_secret_password',
-    onConnect: () => {
-        console.log('已连接');
-        client.send('Hello World!');
-    },
-    onMessage: (sender, text, meta) => {
-        console.log(`${sender}: ${text}`);
-    },
-    onError: (err) => {
-        console.error('错误:', err.message);
-    }
-});
-
-client.connect();
-```
-
-## API 参考
-
-### 构造函数
-
-```javascript
-new MqttSecureClient(options)
-```
-
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `broker` | string | 是 | MQTT Broker URL，如 `wss://broker.emqx.io:8084/mqtt` |
-| `topic` | string | 是 | 订阅/发布的主题 |
-| `password` | string | 是 | AES 加密密码（所有客户端必须相同） |
-| `clientId` | string | 否 | 自定义客户端 ID，默认随机生成 |
-| `reconnectPeriod` | number | 否 | 重连间隔(ms)，默认 5000 |
-| `onConnect` | Function | 否 | 连接成功回调 `() => void` |
-| `onDisconnect` | Function | 否 | 断开连接回调 `() => void` |
-| `onMessage` | Function | 否 | 收到消息回调 `(sender, text, meta) => void` |
-| `onError` | Function | 否 | 错误回调 `(error) => void` |
-
-### 方法
-
-| 方法 | 说明 | 返回值 |
-|------|------|--------|
-| `connect()` | 建立连接 | void |
-| `disconnect()` | 断开连接 | void |
-| `send(text, metadata)` | 发送加密消息 | boolean |
-
-### send 方法
-
-```javascript
-client.send('消息内容', {
-    user: 'MyName'  // 自定义发送者名称
-});
-```
-
-## 消息格式
-
-加密前的消息 JSON 格式：
+所有 MQTT 消息均经过 AES 加密传输：
 
 ```json
 {
-  "id": "客户端唯一ID",
-  "msgId": "消息唯一ID",
-  "user": "发送者名称",
-  "msg": "消息内容",
+  "id": "客户端ID（用于忽略自身消息）",
+  "msgId": "消息ID（用于去重）",
+  "user": "用户标识",
+  "msg": "命令内容（JSON字符串）",
   "time": 1700000000000
 }
 ```
 
-加密方式：CryptoJS AES.encrypt(JSON.stringify(payload), password)
+### 加密方式
 
-## 完整示例
+- 算法：AES（CryptoJS）
+- 密钥：与 Broker 配置的 password 一致
+- 消息体加密后通过 MQTT Publish 发送
 
-见 [example.html](./example.html)，可直接在浏览器中打开使用。
+### 心跳机制
 
-## 与 MQTT Hub 兼容
+- ping/pong 双向检测
+- 默认 30 秒心跳间隔
+- 5 秒超时判定离线
 
-此封装与 [MQTT Hub](https://github.com/weijia/mqtthub) 网页聊天工具完全兼容：
-- 相同的 AES 加密方式
-- 相同的消息格式
-- 使用相同的 broker/topic/password 即可互通
+## 平安证券支持的命令（provider=pingan）
+
+| 命令 | 说明 |
+|------|------|
+| `get_holdings` | 获取平安证券持仓列表 |
+| `list_strategies` | 获取平安证券全部策略单列表 |
+| `add` | 添加条件单按钮 |
+| `create` | 创建双向条件单 |
+| `buy` | 创建买入条件单 |
+| `sell` | 创建卖出条件单 |
+| `query` | 查询条件单 |
+| `cancel` | 取消条件单 |
+| `remove` | 移除按钮 |
+| `list` | 查询已添加的条件单列表 |
+
+## 平安证券 API
+
+详见 [stock-server/docs/PingAn-API.md](../stock-server/docs/PingAn-API.md)
+
+### 策略单列表 API
+
+`POST https://m.stock.pingan.com/restapi/past/queryMyYmdForPage`
+
+通过 `list_strategies` MQTT 命令获取平安证券的全部策略单数据，包括：
+- 网格交易 (strategy_id=12)
+- 回落卖出 (strategy_id=7)
+- 反弹买入 (strategy_id=8)
+- 止盈止损 (strategy_id=23)
+- 定期定投 (strategy_id=15)
+- ETF网格交易 (strategy_id=34)
+- 可转债网格 (strategy_id=35)
+- 国债逆回购 (strategy_id=39)
+- 涨跌幅条件单 (strategy_id=22)
+- 价格条件单 (strategy_id=21)
+- 均线条件单 (strategy_id=38)
+
+## 多 Agent 共存
+
+- 通过 `id` 字段区分消息来源
+- 自动忽略自身发出的消息
+- 所有 Agent 使用相同密码才能互通
