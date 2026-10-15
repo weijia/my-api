@@ -11,6 +11,7 @@ stock-server/
     stock_price_api_prd.html   # 产品需求文档（PRD）
     node_config_sync_flow.md   # 节点配置自动同步流程设计
     MQTT-Commands-API.md       # MQTT 命令接口文档（远程控制）
+    MQTT-Price-API.md          # MQTT 行情接口文档（取行情 / 订阅实时价）
 ```
 
 ## 接口概览
@@ -34,6 +35,14 @@ stock-server/
 |------|------|
 | [MQTT 命令接口](stock-server/docs/MQTT-Commands-API.md) | MQTT 命令协议、命令列表、参数说明 |
 | [MQTT Secure Client](mqtt-secure-client/README.md) | 加密 MQTT 客户端封装 |
+
+## MQTT 行情（Price Server）
+
+取行情与订阅实时价，走独立 topic（`secure/stock-price-mqtt`），与上面的下单通道互不相干。
+
+| 文档 | 说明 |
+|------|------|
+| [MQTT 行情接口](stock-server/docs/MQTT-Price-API.md) | 信封/加密约定、命令列表、`subscribe` / `quote_push` 字段、接入示例 |
 
 ### 支持的命令
 
