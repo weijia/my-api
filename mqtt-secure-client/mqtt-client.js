@@ -102,24 +102,30 @@ class MqttSecureClient {
     /**
      * 发送加密消息
      * @param {string} text - 要发送的明文
-     * @param {Object} [metadata] - 额外元数据
+     * @param {Object} [options] - 选项
+     * @param {string} [options.msgId] - 指定 msgId；用于回显请求方的 msgId，实现请求-响应关联（方案 A）
+     * @param {string} [options.user] - 用户标识
+     * @param {Object} [options.meta] - 额外元数据（合并进 payload）
      * @returns {boolean} 是否发送成功
      */
-    send(text, metadata = {}) {
+    send(text, options = {}) {
         if (!this.connected || !this.client) {
             console.warn('[MqttSecureClient] Not connected');
             return false;
         }
 
-        const msgId = Date.now() + '_' + Math.random().toString(16).slice(2, 6);
+        // 若调用方传入 msgId（通常是请求方下发的 msgId），则原样回显，
+        // 用于请求-响应关联；否则生成一个新 msgId（兼容旧调用方）。
+        const msgId = options.msgId
+            || (Date.now() + '_' + Math.random().toString(16).slice(2, 6));
 
         const payload = {
             id: this.clientId,
             msgId: msgId,
-            user: metadata.user || 'User_' + this.clientId.slice(-4),
+            user: options.user || 'User_' + this.clientId.slice(-4),
             msg: text,
             time: Date.now(),
-            ...metadata
+            ...(options.meta || {})
         };
 
         const cipher = CryptoJS.AES.encrypt(
