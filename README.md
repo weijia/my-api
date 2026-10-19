@@ -12,6 +12,13 @@ stock-server/
     node_config_sync_flow.md   # 节点配置自动同步流程设计
     MQTT-Commands-API.md       # MQTT 命令接口文档（远程控制）
     MQTT-Price-API.md          # MQTT 行情接口文档（取行情 / 订阅实时价）
+pouchdb-server/
+  docs/
+    PouchDB-Register-API.md    # PouchDB 同步服务账号注册接口（注册申请 / 审批状态查询）
+mqtt-secure-client/
+  mqtt-client.js             # 加密 MQTT 客户端封装
+  example.html
+  README.md
 ```
 
 ## 接口概览
@@ -49,3 +56,13 @@ stock-server/
 **方正证券**：`get_holdings`、`list`、`stop`、`buy`、`sell`、`create`、`add`、`cancel`、`generate_decrease`、`refresh_grid`、`list_grid`、`remove_grid`、`create_grid`
 
 **平安证券**：`get_holdings`、`add`、`create`、`buy`、`sell`、`query`、`cancel`、`remove`、`list`
+
+## PouchDB 同步服务
+
+PouchDB/CouchDB 兼容的同步服务（`pouchdb-https-server`，Node.js），用于多设备间同步本地数据库。新设备通过注册接口申请账号，本机管理员审批后即可登录同步。
+
+| 文档 | 说明 |
+|------|------|
+| [PouchDB 注册接口](pouchdb-server/docs/PouchDB-Register-API.md) | 注册申请提交、审批状态轮询、错误码、Python 调用示例 |
+
+注册为**审批制**：客户端 `POST /_register` 提交申请拿到 `token`，轮询 `GET /_register/status` 直到 `approved`，本机管理员在管理页（`http://127.0.0.1:8224/_admin/`）点批准，账号才生效。
