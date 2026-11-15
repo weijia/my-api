@@ -2,6 +2,10 @@
 
 股票行情服务器 API 文档仓库。
 
+## 端口与路径规划
+
+各服务端口、URL 路径的集中规划与冲突规避，详见 [PORTS_AND_PATHS.md](PORTS_AND_PATHS.md)。
+
 ## 目录结构
 
 ```
